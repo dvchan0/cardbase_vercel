@@ -7,8 +7,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing `query` string parameter' });
   }
 
-  // Build a simple name search. You can expand this to support set, id, etc.
-  const q = `name:"${String(query).replace(/"/g, '')}"`;
+  // Build a simple name search (do NOT include surrounding quotes — the upstream API treats quoted name queries as invalid).
+  const q = `name:${String(query).replace(/"/g, '')}`;
   const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=12`;
 
   try {
@@ -18,7 +18,8 @@ export default async function handler(req, res) {
     const r = await fetch(url, { headers });
     if (!r.ok) {
       const body = await r.text();
-      return res.status(r.status).json({ error: body });
+      // include upstream status + truncated body for easier debugging (no secrets)
+      return res.status(r.status).json({ error: `Upstream ${r.status} ${r.statusText}`, upstream: body?.slice?.(0, 1000) });
     }
 
     const payload = await r.json();
