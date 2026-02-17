@@ -1,0 +1,30 @@
+// Server-side proxy to Pokémon TCG API
+// Reads POKEMON_TCG_API_KEY from process.env (keep it secret — use .env.local)
+
+export default async function handler(req, res) {
+  const { query } = req.query;
+  if (!query || typeof query !== 'string') {
+    return res.status(400).json({ error: 'Missing `query` string parameter' });
+  }
+
+  // Build a simple name search. You can expand this to support set, id, etc.
+  const q = `name:"${String(query).replace(/"/g, '')}"`;
+  const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=12`;
+
+  try {
+    const headers = {};
+    if (process.env.POKEMON_TCG_API_KEY) headers['X-Api-Key'] = process.env.POKEMON_TCG_API_KEY;
+
+    const r = await fetch(url, { headers });
+    if (!r.ok) {
+      const body = await r.text();
+      return res.status(r.status).json({ error: body });
+    }
+
+    const payload = await r.json();
+    // Return the API response directly — frontend can read `card.tcgplayer` if present
+    return res.status(200).json(payload);
+  } catch (err) {
+    return res.status(500).json({ error: err.message || String(err) });
+  }
+}
